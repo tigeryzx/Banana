@@ -27,12 +27,12 @@ namespace Banana.Uow
     /// <summary>
     /// 仓储基类| Base Repository
     /// </summary>
-    public class Repository<T> : IRepository<T> where T : class, IEntity
+    public class Repository<T> : SimpleRepository, IRepository<T> where T : class, IEntity
     {
         /// <summary>
         /// 仓储基类| Base Repository
         /// </summary>
-        public Repository(string dbAliase ="")
+        public Repository(string dbAliase = "")
         {
             this.dbAliase = dbAliase;
         }
@@ -48,33 +48,6 @@ namespace Banana.Uow
         }
 
         #region Field & method
-        private string dbAliase;
-
-        /// <summary>
-        /// CurrentDB Setting
-        /// </summary>
-        public DBSetting CurrentDBSetting => ConnectionBuilder.GetDBSetting(dbAliase);
-
-        private IDbConnection _dbConnection;
-        /// <summary>
-        /// IDbConnection
-        /// </summary>
-        public IDbConnection DBConnection
-        {
-            get
-            {
-                if (_dbConnection == null)
-                {
-                    _dbConnection = ConnectionBuilder.CreateConnection(dbAliase);
-                }
-                if (_dbConnection.State == ConnectionState.Closed && _dbConnection.State!= ConnectionState.Connecting)
-                {
-                    _dbConnection.Open();
-                } 
-                return _dbConnection;
-            }
-            private set { this._dbConnection = value; }
-        }
 
         /// <summary>
         /// 表名|
@@ -83,29 +56,10 @@ namespace Banana.Uow
         public string TableName
         {
             get
-            { 
+            {
                 return SqlMapperExtensions.GetTableName(EntityType);
             }
         }
-
-        private IDbTransaction _dbTransaction;
-        /// <summary>
-        /// 开启事务|
-        /// Open transaction
-        /// </summary>
-        public IDbTransaction OpenTransaction()
-        {
-            if (TrancationState == ETrancationState.Closed)
-                _dbTransaction = DBConnection.BeginTransaction();
-            TrancationState = ETrancationState.Opened;
-            return _dbTransaction;
-        }
-
-        /// <summary>
-        /// 事务状态|
-        /// transaction's state
-        /// </summary>
-        public ETrancationState TrancationState { get; private set; } = ETrancationState.Closed;
 
         /// <summary>
         /// 对象类型|
@@ -134,6 +88,7 @@ namespace Banana.Uow
         /// <returns>返回自增Id|Identity of inserted entity.</returns>
         public long Insert(T entity)
         {
+            this.OnEntityInsert(entity);
             return DBConnection.Insert(entity, _dbTransaction);
         }
 
@@ -145,6 +100,7 @@ namespace Banana.Uow
         /// <returns>返回受影响行数|number of inserted rows if inserting a list.</returns>
         public long Insert(IEnumerable<T> entityList)
         {
+            this.TriggerEntityListInsertHandle(entityList);
             return DBConnection.Insert(entityList, _dbTransaction);
         }
 
@@ -233,19 +189,8 @@ namespace Banana.Uow
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public bool Update(T entity)
         {
+            this.OnEntityUpdate(entity);
             return DBConnection.Update<T>(entity, _dbTransaction);
-        }
-
-        /// <summary>
-        /// 执行单条语句
-        /// |Execute parameterized SQL.
-        /// </summary>
-        /// <param name="sql">parameterized SQL</param>
-        /// <param name="parms">The parameters to use for this query.</param>
-        /// <returns>受影响的行数|The number of rows affected.</returns>
-        public int Execute(string sql, dynamic parms)
-        {
-            return DBConnection.Execute(sql, (object)parms, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -258,6 +203,7 @@ namespace Banana.Uow
         /// <returns>受影响的行数|The number of rows affected.</returns>
         public virtual bool InsertBatch(string sql, IEnumerable<T> entities, bool openTransaction = true)
         {
+            this.TriggerEntityListInsertHandle(entities);
             if (openTransaction)
             {
                 using (IDbTransaction trans = OpenTransaction())
@@ -349,6 +295,7 @@ namespace Banana.Uow
         /// <returns>是否更新成功|true if updated, false if not found or not modified (tracked entities)</returns>
         public async Task<bool> UpdateAsync(T entity)
         {
+            this.OnEntityUpdate(entity);
             return await DBConnection.UpdateAsync(entity, _dbTransaction);
         }
 
@@ -431,18 +378,6 @@ namespace Banana.Uow
         }
 
         /// <summary>
-        /// 执行单条语句
-        /// |Execute parameterized SQL.
-        /// </summary>
-        /// <param name="sql">parameterized SQL</param>
-        /// <param name="parms">The parameters to use for this query.</param>
-        /// <returns>受影响的行数|The number of rows affected.</returns>
-        public async Task<int> ExecuteAsync(string sql, dynamic parms)
-        {
-            return await DBConnection.ExecuteAsync(sql, (object)parms, transaction: _dbTransaction);
-        }
-
-        /// <summary>
         /// 删除全部|
         /// Delete all data
         /// </summary>
@@ -475,5 +410,33 @@ namespace Banana.Uow
             return await ExecuteAsync(sb.SQL, sb.Arguments) > 0;
         }
         #endregion
+
+
+        private void TriggerEntityListInsertHandle(IEnumerable<T> entities)
+        {
+            if (entities != null && entities.Count() > 0)
+            {
+                foreach (var item in entities)
+                    this.OnEntityInsert(item);
+            }
+        }
+
+        /// <summary>
+        /// 实体新增事件
+        /// </summary>
+        /// <param name="entity">entity</param>
+        protected virtual void OnEntityInsert(T entity)
+        {
+
+        }
+
+        /// <summary>
+        /// 实体更新事件
+        /// </summary>
+        /// <param name="entity">entity</param>
+        protected virtual void OnEntityUpdate(T entity)
+        {
+
+        }
     }
 }

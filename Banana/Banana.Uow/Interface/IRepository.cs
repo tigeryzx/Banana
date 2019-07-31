@@ -18,7 +18,8 @@ namespace Banana.Uow.Interface
     /// <summary>
     /// 仓储接口|The interface for all CURD operations 
     /// </summary> 
-    public interface IRepository<T> where T : class, IEntity
+    public interface IRepository<T> : ISimpleRepository 
+        where T : class, IEntity
     {
         #region Sync
         /// <summary>
@@ -67,15 +68,6 @@ namespace Banana.Uow.Interface
         /// Delete all data
         /// </summary>
         bool DeleteAll();
-
-        /// <summary>
-        /// 执行单条语句
-        /// |Execute parameterized SQL.
-        /// </summary>
-        /// <param name="sql">parameterized SQL</param>
-        /// <param name="parms">The parameters to use for this query.</param>
-        /// <returns>受影响的行数|The number of rows affected.</returns>
-        int Execute(string sql, dynamic parms = null);
 
         /// <summary>
         /// 查询单个实体|
@@ -215,14 +207,6 @@ namespace Banana.Uow.Interface
         /// <returns>返回分页数据|returning the paging data typed as T</returns>
         Task<IPage<T>> QueryListAsync(int pageNum, int pageSize, string whereString = null, object param = null, string order = null, bool asc = false);
 
-        /// <summary>
-        /// 执行单条语句
-        /// |Execute parameterized SQL.
-        /// </summary>
-        /// <param name="sql">parameterized SQL</param>
-        /// <param name="parms">The parameters to use for this query.</param>
-        /// <returns>受影响的行数|The number of rows affected.</returns>
-        Task<int> ExecuteAsync(string sql, dynamic parms = null);
         #endregion
 
         #region Field & method
@@ -233,32 +217,11 @@ namespace Banana.Uow.Interface
         string TableName { get; }
 
         /// <summary>
-        /// DBConnection
-        /// </summary>
-        IDbConnection DBConnection { get; }
-
-        /// <summary>
-        /// 开启事务|
-        /// Open transaction
-        /// </summary>
-        IDbTransaction OpenTransaction();
-
-        /// <summary>
-        /// 事务状态|
-        /// transaction's state
-        /// </summary>
-        ETrancationState TrancationState { get; }
-
-        /// <summary>
         /// 对象类型|
         /// type of entity
         /// </summary>
         Type EntityType { get; }
 
-        /// <summary>
-        /// Current repository's DBSetting
-        /// </summary>
-        DBSetting CurrentDBSetting { get; }
         #endregion
     }
 }
