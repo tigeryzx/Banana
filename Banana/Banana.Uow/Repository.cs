@@ -159,7 +159,7 @@ namespace Banana.Uow
         /// <returns>Entity of T</returns>
         public T Query(object id)
         {
-            return DBConnection.Get<T>(id);
+            return DBConnection.Get<T>(id, _dbTransaction);
         }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace Banana.Uow
             {
                 sb.Where(whereString, param);
             }
-            return DBConnection.QueryFirst<int>(sb.SQL, sb.Arguments);
+            return DBConnection.QueryFirst<int>(sb.SQL, sb.Arguments, _dbTransaction);
         }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace Banana.Uow
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
                 var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments).ToList();
+                return DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction).ToList();
             }
         }
 
@@ -362,7 +362,7 @@ namespace Banana.Uow
         /// <returns>返回实体|Entity of T</returns>
         public async Task<T> QueryAsync(object id)
         {
-            return await DBConnection.GetAsync<T>(id);
+            return await DBConnection.GetAsync<T>(id, _dbTransaction);
         }
 
         /// <summary>
@@ -381,7 +381,7 @@ namespace Banana.Uow
             {
                 sb.Where(whereString, param);
             }
-            return await DBConnection.QueryFirstAsync<int>(sb.SQL, sb.Arguments);
+            return await DBConnection.QueryFirstAsync<int>(sb.SQL, sb.Arguments, _dbTransaction);
         }
 
         /// <summary>
@@ -403,7 +403,7 @@ namespace Banana.Uow
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
                 var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments);
+                return await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction);
             }
         }
 
@@ -423,7 +423,7 @@ namespace Banana.Uow
             IPage<T> paging = new Paging<T>(pageNum, pageSize);
             ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
             var sqlbuilder = adapter.GetPageList(this, pageNum, pageSize, whereString, param, order, asc);
-            var data = await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments);
+            var data = await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction);
             var dataCount = await QueryCountAsync(whereString, param);
             paging.data = data.ToList();
             paging.dataCount = dataCount;

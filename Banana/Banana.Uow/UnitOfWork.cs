@@ -22,12 +22,12 @@ namespace Banana.Uow
     /// </summary>
     public class UnitOfWork : IUnitOfWork, IRepositoryFactory
     {
-        private Dictionary<Type, object> repositories;
-        private readonly IDbConnection context;
-        private readonly IDbTransaction transaction;
+        protected Dictionary<Type, object> repositories;
+        protected readonly IDbConnection context;
+        protected readonly IDbTransaction transaction;
 
         #region Disposed
-        private bool disposed = false;
+        protected bool disposed = false;
         protected virtual void Dispose(bool disposing)
         {
             if (!disposed)
