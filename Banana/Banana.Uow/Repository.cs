@@ -10,6 +10,7 @@
  * 2019-01-21  1.Current DB Setting
  * 2019-03-22  1.优化QueryListAsync
  *             2.InsertBatch Add open transaction's param
+ * 2019-07-31  1.Fix bug Issues#7
  **********************************/
 
 using System;
@@ -115,7 +116,7 @@ namespace Banana.Uow
         /// <returns>Entity of T</returns>
         public T Query(object id)
         {
-            return DBConnection.Get<T>(id, _dbTransaction);
+            return DBConnection.Get<T>(id, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -134,7 +135,7 @@ namespace Banana.Uow
             {
                 sb.Where(whereString, param);
             }
-            return DBConnection.QueryFirst<int>(sb.SQL, sb.Arguments, _dbTransaction);
+            return DBConnection.QueryFirst<int>(sb.SQL, sb.Arguments, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -150,13 +151,13 @@ namespace Banana.Uow
         {
             if (string.IsNullOrEmpty(whereString) && string.IsNullOrEmpty(order))
             {
-                return DBConnection.GetAll<T>().ToList();
+                return DBConnection.GetAll<T>(transaction: _dbTransaction).ToList();
             }
             else
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
                 var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction).ToList();
+                return DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
             }
         }
 
@@ -176,7 +177,7 @@ namespace Banana.Uow
             IPage<T> paging = new Paging<T>(pageNum, pageSize);
             ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
             var sqlbuilder = adapter.GetPageList(this, pageNum, pageSize, whereString, param, order, asc);
-            paging.data = DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments).ToList();
+            paging.data = DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
             paging.dataCount = QueryCount(whereString, param);
             return paging;
         }
@@ -309,7 +310,7 @@ namespace Banana.Uow
         /// <returns>返回实体|Entity of T</returns>
         public async Task<T> QueryAsync(object id)
         {
-            return await DBConnection.GetAsync<T>(id, _dbTransaction);
+            return await DBConnection.GetAsync<T>(id, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -328,7 +329,7 @@ namespace Banana.Uow
             {
                 sb.Where(whereString, param);
             }
-            return await DBConnection.QueryFirstAsync<int>(sb.SQL, sb.Arguments, _dbTransaction);
+            return await DBConnection.QueryFirstAsync<int>(sb.SQL, sb.Arguments, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -344,13 +345,13 @@ namespace Banana.Uow
         {
             if (string.IsNullOrEmpty(whereString) && string.IsNullOrEmpty(order))
             {
-                return await DBConnection.GetAllAsync<T>();
+                return await DBConnection.GetAllAsync<T>(transaction: _dbTransaction);
             }
             else
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
                 var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction);
+                return await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction);
             }
         }
 
@@ -370,7 +371,7 @@ namespace Banana.Uow
             IPage<T> paging = new Paging<T>(pageNum, pageSize);
             ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
             var sqlbuilder = adapter.GetPageList(this, pageNum, pageSize, whereString, param, order, asc);
-            var data = await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, _dbTransaction);
+            var data = await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction);
             var dataCount = await QueryCountAsync(whereString, param);
             paging.data = data.ToList();
             paging.dataCount = dataCount;
@@ -383,7 +384,7 @@ namespace Banana.Uow
         /// </summary>
         public bool DeleteAll()
         {
-            return DBConnection.DeleteAll<T>(_dbTransaction);
+            return DBConnection.DeleteAll<T>(transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -392,7 +393,7 @@ namespace Banana.Uow
         /// </summary>
         public async Task<bool> DeleteAllAsync()
         {
-            return await DBConnection.DeleteAllAsync<T>(_dbTransaction);
+            return await DBConnection.DeleteAllAsync<T>(transaction: _dbTransaction);
         }
 
         /// <summary>
