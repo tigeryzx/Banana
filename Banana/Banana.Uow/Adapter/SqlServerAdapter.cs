@@ -158,6 +158,25 @@ namespace Banana.Uow.Adapter
         public ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
             where T : class, IEntity
         {
+            return GetPageList<T>(null, repository, pageNum: pageNum, pageSize: pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        /// <summary>
+        /// 分页
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="repository"></param>
+        /// <param name="pageNum">页码</param>
+        /// <param name="pageSize">页大小</param>
+        /// <param name="whereString">where语句，不需要携带where</param>
+        /// <param name="param">where 参数</param>
+        /// <param name="order"></param>
+        /// <param name="asc"></param>
+        /// <returns></returns>
+        public ISqlBuilder GetPageList<T>(string tableNameFormat, IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
+            where T : class, IEntity
+        {
             SqlBuilder sqlBuilder = new SqlBuilder();
             var sbColumnList = new StringBuilder(null);
             var allProperties = SqlMapperExtensions.TypePropertiesCache(typeof(T));

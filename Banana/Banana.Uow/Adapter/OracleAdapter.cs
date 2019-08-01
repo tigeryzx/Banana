@@ -173,11 +173,18 @@ namespace Banana.Uow.Adapter
         }
 
         public ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
+            where T : class, IEntity
+        {
+            return GetPageList<T>(null, repository, pageNum: pageNum, pageSize: pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+        public ISqlBuilder GetPageList<T>(string tableNameFormat, IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
           where T : class, IEntity
         {
             SqlBuilder sqlBuilder = new SqlBuilder();
             var sbColumnList = new StringBuilder(null);
             var allProperties = SqlMapperExtensions.TypePropertiesCache(typeof(T));
+            var tableName = SqlMapperExtensions.GetTableName(repository.TableName, tableNameFormat);
+
             for (var i = 0; i < allProperties.Count; i++)
             {
                 var property = allProperties[i];
@@ -187,6 +194,7 @@ namespace Banana.Uow.Adapter
             }
 
             sqlBuilder.Select(args: sbColumnList.ToString());
+
             if (pageSize > 0)
             { 
                 SqlBuilder sqlBuilderRows = new SqlBuilder();
@@ -195,19 +203,27 @@ namespace Banana.Uow.Adapter
                 {
                     ascSql = " desc";
                 }
-                string orderSql = "ID";
+                string orderSql = string.Empty;
                 if (order != null)
                 {
-                    orderSql = SqlBuilder.GetArgsString("ORDER BY", prefix: repository.TableName, args: order);
+                    orderSql = SqlBuilder.GetArgsString("ORDER BY", args: order);
+                }
+                else
+                {
+                    var keyProp = SqlMapperExtensions.KeyPropertiesCache(typeof(T));
+                    if (keyProp != null && keyProp.Count > 0)
+                        orderSql = SqlMapperExtensions.GetColumnName(keyProp[0]);
+                    else
+                        throw new Exception($"Need set Table poco key [{tableName}]");
                 }
 
-                sqlBuilderRows.Select(args: $"SELECT ROW_NUMBER() OVER(ORDER BY { orderSql}  {ascSql} ) AS row_id,{repository.TableName}.*");
-                sqlBuilderRows.From(repository.TableName);
+                sqlBuilderRows.Select(args: $"SELECT ROW_NUMBER() OVER(ORDER BY {orderSql}  {ascSql} ) AS row_id,it.*");
+                sqlBuilderRows.From($"{tableName} it");
                 if (!string.IsNullOrEmpty(whereString))
                 {
                     sqlBuilderRows.Where(whereString, param);
                 }
-                sqlBuilder.Append($"From ({sqlBuilderRows.SQL}) TT", sqlBuilderRows.Arguments);
+                sqlBuilder.Append($"From ({sqlBuilderRows.SQL}) TT", param);
 
                 if (pageNum <= 0)
                     pageNum = 1;
@@ -217,8 +233,7 @@ namespace Banana.Uow.Adapter
             }
             else
             {
-                
-                sqlBuilder.From(repository.TableName);
+                sqlBuilder.From(tableName);
                 if (!string.IsNullOrEmpty(whereString))
                 {
                     sqlBuilder.Where(whereString, param);

@@ -36,6 +36,8 @@ namespace Banana.Uow.Extension
             _args = args;
         }
 
+        private readonly string _escapeCode = "@@";
+
         private readonly string _sql;
         private readonly object[] _args;
         private SqlBuilder _rhs;
@@ -68,6 +70,18 @@ namespace Banana.Uow.Extension
             {
                 Build();
                 return _sqlFinal;
+            }
+        }
+
+        /// <summary>
+        /// 与SQL性质一样，为处理了转义后的SQL
+        /// </summary>
+        public string ESQL
+        {
+            get
+            {
+                Build();
+                return _sqlFinal.Replace(_escapeCode, "@");
             }
         }
 

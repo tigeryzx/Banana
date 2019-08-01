@@ -11,7 +11,7 @@ using Dapper;
 namespace Banana.Uow
 {
     /// <summary>
-    /// 与实体无关仓储基类| Base Repository
+    /// 与实体无关仓储基类| Simple Repository
     /// </summary>
     public class SimpleRepository : ISimpleRepository
     {

@@ -141,7 +141,14 @@ namespace Banana.Uow.Adapter
         /// </summary>
         public MySqlAdapter() { }
 
-        public ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false) 
+        public ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
+    where T : class, IEntity
+
+        {
+            return GetPageList<T>(null, repository, pageNum: pageNum, pageSize: pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        public ISqlBuilder GetPageList<T>(string tableNameFormat, IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false) 
             where T : class, IEntity
         {
             SqlBuilder sqlBuilder = new SqlBuilder();

@@ -80,6 +80,11 @@ namespace Banana.Uow.Extension
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> GetQueries = new ConcurrentDictionary<RuntimeTypeHandle, string>();
         private static readonly ConcurrentDictionary<RuntimeTypeHandle, string> TypeTableName = new ConcurrentDictionary<RuntimeTypeHandle, string>();
 
+        /// <summary>
+        /// Table name format default use [Table] placeholder
+        /// </summary>
+        private static readonly string TableNameFormatPlaceholder = "[Table]";
+
         private static readonly ISqlAdapter DefaultAdapter = new SqlServerAdapter();
         private static readonly Dictionary<string, ISqlAdapter> AdapterDictionary
             = new Dictionary<string, ISqlAdapter>
@@ -214,6 +219,24 @@ namespace Banana.Uow.Extension
         /// <returns>Entity of T</returns>
         public static T Get<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return Get<T>(connection, id, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Returns a single entity by a single id from table "Ts".  
+        /// Id must be marked with [Key] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance. 
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static T Get<T>(this IDbConnection connection, dynamic id,string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
             var sb = new StringBuilder();
             var adapter = GetFormatter(connection);
@@ -221,7 +244,7 @@ namespace Banana.Uow.Extension
             adapter.AppendParametr(sb, key.Name);
             if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
-                var name = GetTableName(type);
+                var name = GetTableName(type, tableNameFormat);
                 var sbColumnList = new StringBuilder(null);
                 var allProperties = TypePropertiesCache(type);
                 for (var i = 0; i < allProperties.Count; i++)
@@ -287,6 +310,23 @@ namespace Banana.Uow.Extension
         /// <returns>Entity of T</returns>
         public static IEnumerable<T> GetAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return GetAll<T>(connection, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Returns a list of entites from table "Ts".  
+        /// Id of T must be marked with [Key] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance. 
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static IEnumerable<T> GetAll<T>(this IDbConnection connection, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
             var cacheType = typeof(List<T>);
             
@@ -295,7 +335,7 @@ namespace Banana.Uow.Extension
                 GetSingleKey<T>(nameof(GetAll));
 
                 var adapter = GetFormatter(connection);
-                var name = GetTableName(type);
+                var name = GetTableName(type, tableNameFormat);
 
                 var sbColumnList = new StringBuilder(null);
                 var allProperties = TypePropertiesCache(type);
@@ -343,7 +383,7 @@ namespace Banana.Uow.Extension
         /// </summary>
         public static TableNameMapperDelegate TableNameMapper;
 
-        internal static string GetTableName(Type type)
+        internal static string GetTableName(Type type, string tableNameFormat)
         {
             if (TypeTableName.TryGetValue(type.TypeHandle, out string name)) return name;
 
@@ -375,8 +415,21 @@ namespace Banana.Uow.Extension
                 }
             }
 
+            name = GetTableName(name, tableNameFormat);
+
             TypeTableName[type.TypeHandle] = name;
             return name;
+        }
+
+        internal static string GetTableName(string tableSrcName, string tableNameFormat)
+        {
+            if (!string.IsNullOrEmpty(tableNameFormat) && !string.IsNullOrEmpty(tableSrcName))
+            {
+                if (tableNameFormat.IndexOf(TableNameFormatPlaceholder) == -1)
+                    throw new ArgumentException($"tableNameFormat is must have {TableNameFormatPlaceholder} placeholder");
+                tableSrcName = tableNameFormat.Replace(TableNameFormatPlaceholder, tableSrcName);
+            }
+            return tableSrcName;
         }
 
         /// <summary>
@@ -389,6 +442,21 @@ namespace Banana.Uow.Extension
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <returns>Identity of inserted entity, or number of inserted rows if inserting a list</returns>
         public static long Insert<T>(this IDbConnection connection, T entityToInsert, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
+            return Insert<T>(connection, entityToInsert, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Inserts an entity into table "Ts" and returns identity id or number of inserted rows if inserting a list.
+        /// </summary>
+        /// <typeparam name="T">The type to insert.</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToInsert">Entity to insert, can be list of entities</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Identity of inserted entity, or number of inserted rows if inserting a list</returns>
+        public static long Insert<T>(this IDbConnection connection, T entityToInsert, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var isList = false;
             var type = typeof(T);
@@ -411,7 +479,7 @@ namespace Banana.Uow.Extension
                 }
             }
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
             var sbColumnList = new StringBuilder(null);
             var allProperties = TypePropertiesCache(type);
             var keyProperties = KeyPropertiesCache(type);
@@ -452,6 +520,21 @@ namespace Banana.Uow.Extension
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public static bool Update<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return Update<T>(connection, entityToUpdate, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Updates entity in table "Ts", checks if the entity is modified if the entity is tracked by the Get() extension.
+        /// </summary>
+        /// <typeparam name="T">Type to be updated</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToUpdate">Entity to be updated</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
+        public static bool Update<T>(this IDbConnection connection, T entityToUpdate, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             if (entityToUpdate is IProxy proxy && !proxy.IsDirty)
             {
                 return false;
@@ -481,7 +564,7 @@ namespace Banana.Uow.Extension
             if (keyProperties.Count == 0 && explicitKeyProperties.Count == 0)
                 throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
 
             var sb = new StringBuilder();
             sb.AppendFormat("update {0} set ", name);
@@ -524,6 +607,21 @@ namespace Banana.Uow.Extension
         /// <returns>true if deleted, false if not found</returns>
         public static bool Delete<T>(this IDbConnection connection, T entityToDelete, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return Delete<T>(connection, entityToDelete, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Delete entity in table "Ts".
+        /// </summary>
+        /// <typeparam name="T">Type of entity</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToDelete">Entity to delete</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if deleted, false if not found</returns>
+        public static bool Delete<T>(this IDbConnection connection, T entityToDelete, string tableNameFormat,IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             if (entityToDelete == null)
                 throw new ArgumentException("Cannot Delete null Object", nameof(entityToDelete));
 
@@ -551,7 +649,7 @@ namespace Banana.Uow.Extension
             if (keyProperties.Count == 0 && explicitKeyProperties.Count == 0)
                 throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
             keyProperties.AddRange(explicitKeyProperties);
 
             var sb = new StringBuilder();
@@ -580,8 +678,22 @@ namespace Banana.Uow.Extension
         /// <returns>true if deleted, false if none found</returns>
         public static bool DeleteAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return DeleteAll<T>(connection, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Delete all entities in the table related to the type T.
+        /// </summary>
+        /// <typeparam name="T">Type of entity</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if deleted, false if none found</returns>
+        public static bool DeleteAll<T>(this IDbConnection connection, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
             var statement = $"delete from {name}";
             var deleted = connection.Execute(statement, null, transaction, commandTimeout);
             return deleted > 0;

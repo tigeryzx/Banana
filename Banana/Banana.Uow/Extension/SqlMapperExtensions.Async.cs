@@ -35,6 +35,23 @@ namespace Banana.Uow.Extension
         /// <returns>Entity of T</returns>
         public static async Task<T> GetAsync<T>(this IDbConnection connection, dynamic id, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return await GetAsync<T>(connection, id, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Returns a single entity by a single id from table "Ts" asynchronously using .NET 4.5 Task. T must be of interface type. 
+        /// Id must be marked with [Key] attribute.
+        /// Created entity is tracked/intercepted for changes and used by the Update() extension. 
+        /// </summary>
+        /// <typeparam name="T">Interface type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static async Task<T> GetAsync<T>(this IDbConnection connection, dynamic id, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
             var sb = new StringBuilder();
             var adapter = GetFormatter(connection);
@@ -42,7 +59,7 @@ namespace Banana.Uow.Extension
             adapter.AppendParametr(sb, key.Name);
             if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
-                var name = GetTableName(type); 
+                var name = GetTableName(type, tableNameFormat); 
                 var sbColumnList = new StringBuilder(null);
                 var allProperties = TypePropertiesCache(type);
                 for (var i = 0; i < allProperties.Count; i++)
@@ -102,6 +119,23 @@ namespace Banana.Uow.Extension
         /// <returns>Entity of T</returns>
         public static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return GetAllAsync<T>(connection, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Returns a list of entites from table "Ts".  
+        /// Id of T must be marked with [Key] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance. 
+        /// </summary>
+        /// <typeparam name="T">Interface or type to create and populate</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>Entity of T</returns>
+        public static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
             var cacheType = typeof(List<T>);
 
@@ -109,7 +143,7 @@ namespace Banana.Uow.Extension
             {
                 GetSingleKey<T>(nameof(GetAll));
                 var adapter = GetFormatter(connection);
-                var name = GetTableName(type);
+                var name = GetTableName(type, tableNameFormat);
 
                 var sbColumnList = new StringBuilder(null);
                 var allProperties = TypePropertiesCache(type);
@@ -172,6 +206,23 @@ namespace Banana.Uow.Extension
         public static Task<int> InsertAsync<T>(this IDbConnection connection, T entityToInsert, IDbTransaction transaction = null,
             int? commandTimeout = null, ISqlAdapter sqlAdapter = null) where T : class
         {
+            return InsertAsync<T>(connection, entityToInsert, null, transaction: transaction, commandTimeout: commandTimeout, sqlAdapter: sqlAdapter);
+        }
+
+        /// <summary>
+        /// Inserts an entity into table "Ts" asynchronously using .NET 4.5 Task and returns identity id.
+        /// </summary>
+        /// <typeparam name="T">The type being inserted.</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToInsert">Entity to insert</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <param name="sqlAdapter">The specific ISqlAdapter to use, auto-detected based on connection if null</param>
+        /// <returns>Identity of inserted entity</returns>
+        public static Task<int> InsertAsync<T>(this IDbConnection connection, T entityToInsert, string tableNameFormat, IDbTransaction transaction = null,
+            int? commandTimeout = null, ISqlAdapter sqlAdapter = null) where T : class
+        {
             var type = typeof(T);
             var isList = false;
             sqlAdapter = sqlAdapter ?? GetFormatter(connection);
@@ -194,7 +245,7 @@ namespace Banana.Uow.Extension
                 }
             }
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
             var sbColumnList = new StringBuilder(null);
             var allProperties = TypePropertiesCache(type);
             var keyProperties = KeyPropertiesCache(type).ToList();
@@ -233,6 +284,21 @@ namespace Banana.Uow.Extension
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return await UpdateAsync<T>(connection, entityToUpdate, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Updates entity in table "Ts" asynchronously using .NET 4.5 Task, checks if the entity is modified if the entity is tracked by the Get() extension.
+        /// </summary>
+        /// <typeparam name="T">Type to be updated</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToUpdate">Entity to be updated</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
+        public static async Task<bool> UpdateAsync<T>(this IDbConnection connection, T entityToUpdate, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             if ((entityToUpdate is IProxy proxy) && !proxy.IsDirty)
             {
                 return false;
@@ -262,7 +328,7 @@ namespace Banana.Uow.Extension
             if (keyProperties.Count == 0 && explicitKeyProperties.Count == 0)
                 throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
 
             var sb = new StringBuilder();
             sb.AppendFormat("update {0} set ", name);
@@ -305,6 +371,21 @@ namespace Banana.Uow.Extension
         /// <returns>true if deleted, false if not found</returns>
         public static async Task<bool> DeleteAsync<T>(this IDbConnection connection, T entityToDelete, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return await DeleteAsync<T>(connection, entityToDelete, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Delete entity in table "Ts" asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <typeparam name="T">Type of entity</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="entityToDelete">Entity to delete</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if deleted, false if not found</returns>
+        public static async Task<bool> DeleteAsync<T>(this IDbConnection connection, T entityToDelete, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             if (entityToDelete == null)
                 throw new ArgumentException("Cannot Delete null Object", nameof(entityToDelete));
 
@@ -332,7 +413,7 @@ namespace Banana.Uow.Extension
             if (keyProperties.Count == 0 && explicitKeyProperties.Count == 0)
                 throw new ArgumentException("Entity must have at least one [Key] or [ExplicitKey] property");
 
-            var name = GetTableName(type);
+            var name = GetTableName(type, tableNameFormat);
             keyProperties.AddRange(explicitKeyProperties);
 
             var sb = new StringBuilder();
@@ -361,8 +442,22 @@ namespace Banana.Uow.Extension
         /// <returns>true if deleted, false if none found</returns>
         public static async Task<bool> DeleteAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
+            return await DeleteAllAsync<T>(connection, null, transaction: transaction, commandTimeout: commandTimeout);
+        }
+
+        /// <summary>
+        /// Delete all entities in the table related to the type T asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <typeparam name="T">Type of entity</typeparam>
+        /// <param name="connection">Open SqlConnection</param>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="transaction">The transaction to run under, null (the default) if none</param>
+        /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <returns>true if deleted, false if none found</returns>
+        public static async Task<bool> DeleteAllAsync<T>(this IDbConnection connection, string tableNameFormat, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        {
             var type = typeof(T);
-            var statement = "DELETE FROM " + GetTableName(type);
+            var statement = "DELETE FROM " + GetTableName(type, tableNameFormat);
             var deleted = await connection.ExecuteAsync(statement, null, transaction, commandTimeout).ConfigureAwait(false);
             return deleted > 0;
         }

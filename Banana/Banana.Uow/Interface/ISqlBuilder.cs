@@ -18,6 +18,11 @@ namespace Banana.Uow.Interface
         string SQL { get; }
 
         /// <summary>
+        /// 与SQL性质一样，为处理了转义后的SQL
+        /// </summary>
+        string ESQL { get; }
+
+        /// <summary>
         /// args
         /// </summary>
         object Arguments { get; }

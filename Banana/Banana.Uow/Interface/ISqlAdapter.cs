@@ -89,5 +89,21 @@ namespace Banana.Uow.Interface
         /// <returns>返回分页数据|returning the paging data typed as T</returns>
         ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
            where T : class, IEntity;
+
+        /// <summary>
+        /// 分页查询|
+        /// Executes a query, returning the paging data typed as T.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="repository">repository</param>
+        /// <param name="pageNum">页码|page number</param>
+        /// <param name="pageSize">页大小|page size</param>
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <param name="order">order param,(example:order:"createTime")</param>
+        /// <param name="asc">Is ascending</param>
+        /// <returns>返回分页数据|returning the paging data typed as T</returns>
+        ISqlBuilder GetPageList<T>(string tableNameFormat, IRepository<T> repository, int pageNum = 0, int pageSize = 0, string whereString = null, object param = null, object order = null, bool asc = false)
+           where T : class, IEntity;
     }
 }

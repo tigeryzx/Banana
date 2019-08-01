@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using Banana.Utility.Common;
 using Banana.Utility.Redis;
 using Banana.Uow.Interface;
+using Banana.Uow.Adapter;
 
 namespace DotNetCore_TestApp
 {
@@ -22,7 +23,7 @@ namespace DotNetCore_TestApp
         static void Main(string[] args)
         {
             //TestExplicitKey();
-            TestSQLServer();
+            //TestSQLServer();
 
             //TestMySQL();
 
@@ -36,12 +37,31 @@ namespace DotNetCore_TestApp
 
             //TestMultipleDatabases();
 
-            Test();
+            //Test();
+
+            TestOracleAdapter();
+
             Console.WriteLine("Hello World!");
             Console.ReadKey();
-        } 
 
-        #region Show
+
+        }
+
+        private static void TestOracleAdapter()
+        {
+            //OracleAdapter oracleAdapter = new OracleAdapter();
+            //var sqlbuilder = oracleAdapter.GetPageList("[Table]@@TKK",new Repository<UserInfo>(),
+            //    pageNum: 1,
+            //    pageSize: 10,
+            //    //order: "Name",
+            //    whereString: "Name=@Name and Phone=@Phone",
+            //    param: new { Name = "tom", Phone = "123456" });
+
+            //var sql = sqlbuilder.SQL;
+            //var esql = sqlbuilder.ESQL;
+        }
+
+       #region Show
         static void Show(IEnumerable<UserInfo> infos)
         {
             foreach (var info in infos)

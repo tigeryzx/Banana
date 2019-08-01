@@ -26,7 +26,7 @@ namespace Banana.Uow.Extension
         {
             get
             {
-                return SqlMapperExtensions.GetTableName(EntityType);
+                return SqlMapperExtensions.GetTableName(EntityType, null);
             }
         }
     }

@@ -58,7 +58,7 @@ namespace Banana.Uow
         {
             get
             {
-                return SqlMapperExtensions.GetTableName(EntityType);
+                return SqlMapperExtensions.GetTableName(EntityType, null);
             }
         }
 
@@ -70,6 +70,7 @@ namespace Banana.Uow
         #endregion
 
         #region Sync
+
         /// <summary>
         /// 删除实体|
         /// Delete entity in table "Ts".
@@ -78,7 +79,19 @@ namespace Banana.Uow
         /// <returns>true if deleted, false if not found</returns>
         public bool Delete(T entity)
         {
-            return DBConnection.Delete(entity, _dbTransaction);
+            return Delete(null, entity);
+        }
+
+        /// <summary>
+        /// 删除实体|
+        /// Delete entity in table "Ts".
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">entity</param>
+        /// <returns>true if deleted, false if not found</returns>
+        public bool Delete(string tableNameFormat, T entity)
+        {
+            return DBConnection.Delete(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -89,8 +102,20 @@ namespace Banana.Uow
         /// <returns>返回自增Id|Identity of inserted entity.</returns>
         public long Insert(T entity)
         {
+            return Insert(null, entity);
+        }
+
+        /// <summary>
+        /// 插入实体|
+        /// Inserts an entity into table "Ts" and returns identity id or number of inserted rows if inserting a list.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">entity</param>
+        /// <returns>返回自增Id|Identity of inserted entity.</returns>
+        public long Insert(string tableNameFormat,T entity)
+        {
             this.OnEntityInsert(entity);
-            return DBConnection.Insert(entity, _dbTransaction);
+            return DBConnection.Insert(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -101,8 +126,20 @@ namespace Banana.Uow
         /// <returns>返回受影响行数|number of inserted rows if inserting a list.</returns>
         public long Insert(IEnumerable<T> entityList)
         {
+            return Insert(null, entityList);
+        }
+
+        /// <summary>
+        /// 插入实体列表
+        /// |Inserts an entity into table "Ts" and returns identity id or number of inserted rows if inserting a list.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entityList">entity list</param>
+        /// <returns>返回受影响行数|number of inserted rows if inserting a list.</returns>
+        public long Insert(string tableNameFormat, IEnumerable<T> entityList)
+        {
             this.TriggerEntityListInsertHandle(entityList);
-            return DBConnection.Insert(entityList, _dbTransaction);
+            return DBConnection.Insert(entityList, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -116,7 +153,22 @@ namespace Banana.Uow
         /// <returns>Entity of T</returns>
         public T Query(object id)
         {
-            return DBConnection.Get<T>(id, transaction: _dbTransaction);
+            return Query(null, id);
+        }
+
+        /// <summary>
+        /// 查询单个实体|
+        /// Returns a single entity by a single id from table "Ts".  
+        /// Id must be marked with [Key]/[ExplicitKey] attribute.
+        /// Entities created from interfaces are tracked/intercepted for changes and used by the Update() extension
+        /// for optimal performance. 
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key]/[ExplicitKey] attribute</param>
+        /// <returns>Entity of T</returns>
+        public T Query(string tableNameFormat, object id)
+        {
+            return DBConnection.Get<T>(id, tableNameFormat, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -128,14 +180,27 @@ namespace Banana.Uow
         /// <returns>number of rows</returns>
         public int QueryCount(string whereString = null, object param = null)
         {
+            return QueryCount(null, whereString: whereString, param: param);
+        }
+
+        /// <summary>
+        /// 查询总数|
+        /// Returns the number of rows
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="whereString">where sql</param>
+        /// <param name="param">param</param>
+        /// <returns>number of rows</returns>
+        public int QueryCount(string tableNameFormat, string whereString = null, object param = null)
+        {
             SqlBuilder sb = new SqlBuilder();
             sb.Select(args: "Count(*)");
-            sb.From(TableName);
+            sb.From(SqlMapperExtensions.GetTableName(TableName, tableNameFormat));
             if (!string.IsNullOrEmpty(whereString))
             {
                 sb.Where(whereString, param);
             }
-            return DBConnection.QueryFirst<int>(sb.SQL, sb.Arguments, transaction: _dbTransaction);
+            return DBConnection.QueryFirst<int>(sb.ESQL, sb.Arguments, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -149,15 +214,30 @@ namespace Banana.Uow
         /// <returns>returning the data list typed as T.</returns>
         public List<T> QueryList(string whereString = null, object param = null, string order = null, bool asc = false)
         {
+            return QueryList(null, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        /// <summary>
+        /// 查询列表|
+        /// Executes a query, returning the data typed as T.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="whereString">whereString,(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param> 
+        /// <param name="order">order param,(example:order:"createTime")</param>
+        /// <param name="asc">Is ascending</param>
+        /// <returns>returning the data list typed as T.</returns>
+        public List<T> QueryList(string tableNameFormat, string whereString = null, object param = null, string order = null, bool asc = false)
+        {
             if (string.IsNullOrEmpty(whereString) && string.IsNullOrEmpty(order))
             {
-                return DBConnection.GetAll<T>(transaction: _dbTransaction).ToList();
+                return DBConnection.GetAll<T>(tableNameFormat, transaction: _dbTransaction).ToList();
             }
             else
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
-                var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
+                var sqlbuilder = adapter.GetPageList(tableNameFormat, this, whereString: whereString, param: param, order: order, asc: asc);
+                return DBConnection.Query<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
             }
         }
 
@@ -174,10 +254,27 @@ namespace Banana.Uow
         /// <returns>返回分页数据|returning the paging data typed as T</returns>
         public IPage<T> QueryList(int pageNum, int pageSize, string whereString = null, object param = null, string order = null, bool asc = false)
         {
+            return QueryList(null, pageNum: pageNum, pageSize: pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        /// <summary>
+        /// 分页查询|
+        /// Executes a query, returning the paging data typed as T.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="pageNum">页码|page number</param>
+        /// <param name="pageSize">页大小|page size</param>
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <param name="order">order param,(example:order:"createTime")</param>
+        /// <param name="asc">Is ascending</param>
+        /// <returns>返回分页数据|returning the paging data typed as T</returns>
+        public IPage<T> QueryList(string tableNameFormat, int pageNum, int pageSize, string whereString = null, object param = null, string order = null, bool asc = false)
+        {
             IPage<T> paging = new Paging<T>(pageNum, pageSize);
             ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
-            var sqlbuilder = adapter.GetPageList(this, pageNum, pageSize, whereString, param, order, asc);
-            paging.data = DBConnection.Query<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
+            var sqlbuilder = adapter.GetPageList(tableNameFormat, this, pageNum, pageSize, whereString, param, order, asc);
+            paging.data = DBConnection.Query<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction).ToList();
             paging.dataCount = QueryCount(whereString, param);
             return paging;
         }
@@ -190,8 +287,20 @@ namespace Banana.Uow
         /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
         public bool Update(T entity)
         {
+            return Update(null, entity);
+        }
+
+        /// <summary>
+        /// 更新|
+        /// Updates entity in table "Ts", checks if the entity is modified if the entity is tracked by the Get() extension.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">entity</param>
+        /// <returns>true if updated, false if not found or not modified (tracked entities)</returns>
+        public bool Update(string tableNameFormat, T entity)
+        {
             this.OnEntityUpdate(entity);
-            return DBConnection.Update<T>(entity, _dbTransaction);
+            return DBConnection.Update<T>(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -238,6 +347,7 @@ namespace Banana.Uow
             }
         }
 
+     
         /// <summary>
         /// 删除|
         /// Delete data in table "Ts".
@@ -247,14 +357,28 @@ namespace Banana.Uow
         /// <returns>受影响的行数|The number of rows affected.</returns>
         public bool Delete(string whereString, object param)
         {
+            return Delete(null, whereString: whereString, param: param);
+        }
+
+        /// <summary>
+        /// 删除|
+        /// Delete data in table "Ts".
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <returns>受影响的行数|The number of rows affected.</returns>
+        public bool Delete(string tableNameFormat, string whereString, object param)
+        {
             SqlBuilder sb = new SqlBuilder();
-            sb.Append("DELETE FROM " + TableName);
+            sb.Append("DELETE FROM " + SqlMapperExtensions.GetTableName(TableName, tableNameFormat));
             sb.Where(whereString, param);
-            return Execute(sb.SQL, sb.Arguments) > 0;
+            return Execute(sb.ESQL, sb.Arguments) > 0;
         }
         #endregion
 
         #region Async
+
         /// <summary>
         /// 插入|
         /// Inserts an entity into table "Ts" asynchronously using .NET 4.5 Task and returns identity id.
@@ -263,7 +387,19 @@ namespace Banana.Uow
         /// <returns>返回自增Id|Identity of inserted entity.</returns>
         public async Task<int> InsertAsync(T entity)
         {
-            return await DBConnection.InsertAsync(entity, _dbTransaction);
+            return await InsertAsync(null, entity);
+        }
+
+        /// <summary>
+        /// 插入|
+        /// Inserts an entity into table "Ts" asynchronously using .NET 4.5 Task and returns identity id.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">Entity to insert</param>
+        /// <returns>返回自增Id|Identity of inserted entity.</returns>
+        public async Task<int> InsertAsync(string tableNameFormat,T entity)
+        {
+            return await DBConnection.InsertAsync(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -274,8 +410,21 @@ namespace Banana.Uow
         /// <returns>返回受影响行数|number of inserted rows if inserting a list.</returns>
         public async Task<int> InsertAsync(IEnumerable<T> entityList)
         {
-            return await DBConnection.InsertAsync(entityList, _dbTransaction);
+            return await InsertAsync(null, entityList);
         }
+
+        /// <summary>
+        /// 插入实体列表|
+        ///  Inserts an entity list into table "Ts" asynchronously using .NET 4.5 Task and returns identity id.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entityList">Entity list to insert</param>
+        /// <returns>返回受影响行数|number of inserted rows if inserting a list.</returns>
+        public async Task<int> InsertAsync(string tableNameFormat, IEnumerable<T> entityList)
+        {
+            return await DBConnection.InsertAsync(entityList, tableNameFormat, _dbTransaction);
+        }
+
 
         /// <summary>
         /// 删除|
@@ -285,7 +434,19 @@ namespace Banana.Uow
         /// <returns>是否成功|true if deleted, false if not found</returns>
         public async Task<bool> DeleteAsync(T entity)
         {
-            return await DBConnection.DeleteAsync(entity, _dbTransaction);
+            return await DeleteAsync(null, entity);
+        }
+
+        /// <summary>
+        /// 删除|
+        /// Delete entity in table "Ts" asynchronously using .NET 4.5 Task.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">Entity to delete</param>
+        /// <returns>是否成功|true if deleted, false if not found</returns>
+        public async Task<bool> DeleteAsync(string tableNameFormat, T entity)
+        {
+            return await DBConnection.DeleteAsync(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -296,8 +457,20 @@ namespace Banana.Uow
         /// <returns>是否更新成功|true if updated, false if not found or not modified (tracked entities)</returns>
         public async Task<bool> UpdateAsync(T entity)
         {
+            return await UpdateAsync(null, entity);
+        }
+
+        /// <summary>
+        /// 更新|
+        /// Updates entity in table "Ts" asynchronously using .NET 4.5 Task, checks if the entity is modified if the entity is tracked by the Get() extension.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="entity">Entity to be updated</param>
+        /// <returns>是否更新成功|true if updated, false if not found or not modified (tracked entities)</returns>
+        public async Task<bool> UpdateAsync(string tableNameFormat, T entity)
+        {
             this.OnEntityUpdate(entity);
-            return await DBConnection.UpdateAsync(entity, _dbTransaction);
+            return await DBConnection.UpdateAsync(entity, tableNameFormat, _dbTransaction);
         }
 
         /// <summary>
@@ -310,7 +483,21 @@ namespace Banana.Uow
         /// <returns>返回实体|Entity of T</returns>
         public async Task<T> QueryAsync(object id)
         {
-            return await DBConnection.GetAsync<T>(id, transaction: _dbTransaction);
+            return await QueryAsync(null, id);
+        }
+
+        /// <summary>
+        /// 查询|
+        /// Returns a single entity by a single id from table "Ts" asynchronously using .NET 4.5 Task. T must be of interface type. 
+        /// Id must be marked with [Key] attribute.
+        /// Created entity is tracked/intercepted for changes and used by the Update() extension. 
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="id">Id of the entity to get, must be marked with [Key] attribute</param>
+        /// <returns>返回实体|Entity of T</returns>
+        public async Task<T> QueryAsync(string tableNameFormat, object id)
+        {
+            return await DBConnection.GetAsync<T>(id, tableNameFormat, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -322,14 +509,27 @@ namespace Banana.Uow
         /// <returns>总数|Returns the number of rows</returns>
         public async Task<int> QueryCountAsync(string whereString = null, object param = null)
         {
+            return await QueryCountAsync(null, whereString: whereString, param: param);
+        }
+
+        /// <summary>
+        /// 异步查询总数|
+        ///  Returns the number of rows
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>/// 
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <returns>总数|Returns the number of rows</returns>
+        public async Task<int> QueryCountAsync(string tableNameFormat, string whereString = null, object param = null)
+        {
             SqlBuilder sb = new SqlBuilder();
             sb.Select(args: "Count(*)");
-            sb.From(TableName);
+            sb.From(SqlMapperExtensions.GetTableName(TableName, tableNameFormat));
             if (!string.IsNullOrEmpty(whereString))
             {
                 sb.Where(whereString, param);
             }
-            return await DBConnection.QueryFirstAsync<int>(sb.SQL, sb.Arguments, transaction: _dbTransaction);
+            return await DBConnection.QueryFirstAsync<int>(sb.ESQL, sb.Arguments, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -343,6 +543,21 @@ namespace Banana.Uow
         /// <returns>returning the data list typed as T.</returns>
         public async Task<IEnumerable<T>> QueryListAsync(string whereString = null, object param = null, string order = null, bool asc = false)
         {
+            return await QueryListAsync(null, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        /// <summary>
+        /// 查询列表|
+        /// Executes a query, returning the data typed as T.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="whereString">whereString,(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param> 
+        /// <param name="order">order param,(example:order:"createTime")</param>
+        /// <param name="asc">Is ascending</param>
+        /// <returns>returning the data list typed as T.</returns>
+        public async Task<IEnumerable<T>> QueryListAsync(string tableNameFormat, string whereString = null, object param = null, string order = null, bool asc = false)
+        {
             if (string.IsNullOrEmpty(whereString) && string.IsNullOrEmpty(order))
             {
                 return await DBConnection.GetAllAsync<T>(transaction: _dbTransaction);
@@ -350,8 +565,8 @@ namespace Banana.Uow
             else
             {
                 ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
-                var sqlbuilder = adapter.GetPageList(this, whereString: whereString, param: param, order: order, asc: asc);
-                return await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction);
+                var sqlbuilder = adapter.GetPageList(tableNameFormat, this, whereString: whereString, param: param, order: order, asc: asc);
+                return await DBConnection.QueryAsync<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction);
             }
         }
 
@@ -368,10 +583,27 @@ namespace Banana.Uow
         /// <returns>返回分页数据|returning the paging data typed as T</returns>
         public async Task<IPage<T>> QueryListAsync(int pageNum, int pageSize, string whereString = null, object param = null, string order = null, bool asc = false)
         {
+            return await QueryListAsync(null, pageNum, pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+        /// <summary>
+        /// 分页查询|
+        /// Executes a query, returning the paging data typed as T.
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="pageNum">页码|page number</param>
+        /// <param name="pageSize">页大小|page size</param>
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <param name="order">order param,(example:order:"createTime")</param>
+        /// <param name="asc">Is ascending</param>
+        /// <returns>返回分页数据|returning the paging data typed as T</returns>
+        public async Task<IPage<T>> QueryListAsync(string tableNameFormat, int pageNum, int pageSize, string whereString = null, object param = null, string order = null, bool asc = false)
+        {
             IPage<T> paging = new Paging<T>(pageNum, pageSize);
             ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
-            var sqlbuilder = adapter.GetPageList(this, pageNum, pageSize, whereString, param, order, asc);
-            var data = await DBConnection.QueryAsync<T>(sqlbuilder.SQL, sqlbuilder.Arguments, transaction: _dbTransaction);
+            var sqlbuilder = adapter.GetPageList(tableNameFormat, this, pageNum, pageSize, whereString, param, order, asc);
+            var data = await DBConnection.QueryAsync<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction);
             var dataCount = await QueryCountAsync(whereString, param);
             paging.data = data.ToList();
             paging.dataCount = dataCount;
@@ -384,7 +616,17 @@ namespace Banana.Uow
         /// </summary>
         public bool DeleteAll()
         {
-            return DBConnection.DeleteAll<T>(transaction: _dbTransaction);
+            return DeleteAll(null);
+        }
+
+        /// <summary>
+        /// 删除全部|
+        /// Delete all data
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        public bool DeleteAll(string tableNameFormat)
+        {
+            return DBConnection.DeleteAll<T>(tableNameFormat, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -393,7 +635,17 @@ namespace Banana.Uow
         /// </summary>
         public async Task<bool> DeleteAllAsync()
         {
-            return await DBConnection.DeleteAllAsync<T>(transaction: _dbTransaction);
+            return await DeleteAllAsync(null);
+        }
+
+        /// <summary>
+        /// 删除全部|
+        /// Delete all data
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        public async Task<bool> DeleteAllAsync(string tableNameFormat)
+        {
+            return await DBConnection.DeleteAllAsync<T>(tableNameFormat, transaction: _dbTransaction);
         }
 
         /// <summary>
@@ -405,10 +657,23 @@ namespace Banana.Uow
         /// <returns>受影响的行数|The number of rows affected.</returns>
         public async Task<bool> DeleteAsync(string whereString, object param)
         {
+            return await DeleteAsync(null, whereString: whereString, param: param);
+        }
+
+        /// <summary>
+        /// 删除|
+        /// Delete data in table "Ts".
+        /// </summary>
+        /// <param name="tableNameFormat">Table Name Format placeholder</param>
+        /// <param name="whereString">parameterized sql of "where",(example:whereString:name like @name)</param>
+        /// <param name="param">whereString's param，(example:new { name = "google%" })</param>
+        /// <returns>受影响的行数|The number of rows affected.</returns>
+        public async Task<bool> DeleteAsync(string tableNameFormat, string whereString, object param)
+        {
             SqlBuilder sb = new SqlBuilder();
-            sb.Append("DELETE FROM " + TableName);
+            sb.Append("DELETE FROM " + SqlMapperExtensions.GetTableName(TableName, tableNameFormat));
             sb.Where(whereString, param);
-            return await ExecuteAsync(sb.SQL, sb.Arguments) > 0;
+            return await ExecuteAsync(sb.ESQL, sb.Arguments) > 0;
         }
         #endregion
 

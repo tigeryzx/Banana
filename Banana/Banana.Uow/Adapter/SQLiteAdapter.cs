@@ -133,10 +133,15 @@ namespace Banana.Uow.Adapter
 
         /// <summary>
         /// SQLite 扩展
-        public SQLiteAdapter() { } 
-
+        public SQLiteAdapter() { }
 
         public ISqlBuilder GetPageList<T>(IRepository<T> repository, int pageNum, int pageSize, string whereString, object param, object order, bool asc)
+    where T : class, IEntity
+        {
+            return GetPageList<T>(null, repository, pageNum: pageNum, pageSize: pageSize, whereString: whereString, param: param, order: order, asc: asc);
+        }
+
+            public ISqlBuilder GetPageList<T>(string tableNameFormat, IRepository<T> repository, int pageNum, int pageSize, string whereString, object param, object order, bool asc)
             where T : class, IEntity
         {
             SqlBuilder sqlBuilder = new SqlBuilder();
