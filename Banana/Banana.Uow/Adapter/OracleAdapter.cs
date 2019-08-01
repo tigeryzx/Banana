@@ -6,6 +6,7 @@
  * 2018-12-28  1.更新GetPageList中的Select *  => Select {ColumnList}
  * 2019-01-03  1.更新GetPageList中的property.Name => SqlMapperExtensions.GetColumnAlias(property)
  *             2.更新AppendColumnName、AppendColumnNameEqualsValue 新增别名
+ * 2019-08-01  1.Fix bug Issues#8
  **********************************/
 
 using Banana.Uow.Extension;
@@ -203,25 +204,25 @@ namespace Banana.Uow.Adapter
                 {
                     ascSql = " desc";
                 }
-                string orderSql = string.Empty;
-                if (order != null)
+                string orderSql = "";
+                if (order == null)
                 {
-                    orderSql = SqlBuilder.GetArgsString("ORDER BY", args: order);
+                    var type = typeof(T);
+                    var keys = SqlMapperExtensions.KeyPropertiesCache(type);
+                    orderSql = keys.Count > 0 ? SqlMapperExtensions.GetColumnName(keys[0]) : string.Empty;
+                    if(string.IsNullOrEmpty(orderSql))
+                        throw new Exception($"Need set table poco key [{tableName}]");
                 }
                 else
                 {
-                    var keyProp = SqlMapperExtensions.KeyPropertiesCache(typeof(T));
-                    if (keyProp != null && keyProp.Count > 0)
-                        orderSql = SqlMapperExtensions.GetColumnName(keyProp[0]);
-                    else
-                        throw new Exception($"Need set Table poco key [{tableName}]");
+                    orderSql = SqlBuilder.GetArgsString("ORDER BY", args: order);
                 }
 
                 sqlBuilderRows.Select(args: $"SELECT ROW_NUMBER() OVER(ORDER BY {orderSql}  {ascSql} ) AS row_id,it.*");
                 sqlBuilderRows.From($"{tableName} it");
                 if (!string.IsNullOrEmpty(whereString))
                 {
-                    sqlBuilderRows.Where(whereString, param);
+                    sqlBuilderRows.Where(whereString, sqlBuilderRows.Arguments);
                 }
                 sqlBuilder.Append($"From ({sqlBuilderRows.SQL}) TT", param);
 
