@@ -704,5 +704,29 @@ namespace Banana.Uow
         {
 
         }
+
+        public T QuerySingleOrDefault(string whereString = null, object param = null)
+        {
+            return this.QuerySingleOrDefault(null, whereString: whereString, param: param);
+        }
+
+        public T QuerySingleOrDefault(string tableNameFormat, string whereString = null, object param = null)
+        {
+            ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
+            var sqlbuilder = adapter.GetPageList(tableNameFormat, this, whereString: whereString, param: param);
+            return DBConnection.QuerySingleOrDefault<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction);
+        }
+
+        public T QuerySingle(string whereString = null, object param = null)
+        {
+            return this.QuerySingle(null, whereString, param);
+        }
+
+        public T QuerySingle(string tableNameFormat, string whereString = null, object param = null)
+        {
+            ISqlAdapter adapter = ConnectionBuilder.GetAdapter(this.DBConnection);
+            var sqlbuilder = adapter.GetPageList(tableNameFormat, this, whereString: whereString, param: param);
+            return DBConnection.QuerySingle<T>(sqlbuilder.ESQL, sqlbuilder.Arguments, transaction: _dbTransaction);
+        }
     }
 }
