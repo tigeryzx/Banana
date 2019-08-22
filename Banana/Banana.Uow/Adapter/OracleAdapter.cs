@@ -222,9 +222,9 @@ namespace Banana.Uow.Adapter
                 sqlBuilderRows.From($"{tableName} it");
                 if (!string.IsNullOrEmpty(whereString))
                 {
-                    sqlBuilderRows.Where(whereString, sqlBuilderRows.Arguments);
+                    sqlBuilderRows.Where(whereString, param);
                 }
-                sqlBuilder.Append($"From ({sqlBuilderRows.SQL}) TT", param);
+                sqlBuilder.Append($"From ({sqlBuilderRows.SQL}) TT", sqlBuilderRows.Arguments);
 
                 if (pageNum <= 0)
                     pageNum = 1;
